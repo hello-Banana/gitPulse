@@ -40,6 +40,7 @@ var (
 	output        string
 	showHeatmap   bool
 	initConfig    bool
+	listAuthors   bool
 )
 
 func main() {
@@ -80,6 +81,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&self, "self", false, "仅统计当前 Git 用户的提交记录")
 	rootCmd.Flags().StringVarP(&author, "author", "a", "", "指定作者 (邮箱或姓名)")
 	rootCmd.Flags().StringVarP(&excludeAuthor, "exclude-author", "x", "", "排除作者 (支持通配符)")
+	rootCmd.Flags().BoolVar(&listAuthors, "authors", false, "列出所有作者")
 
 	// 其他过滤
 	rootCmd.Flags().StringVarP(&branch, "branch", "b", "", "指定分支")
@@ -194,6 +196,24 @@ func runAnalysis(cmd *cobra.Command, args []string) error {
 	gitCollector, err := collector.NewGitCollector(repoPath)
 	if err != nil {
 		return fmt.Errorf("打开仓库失败：%v", err)
+	}
+
+	// 列出所有作者
+	if listAuthors {
+		authors, err := gitCollector.GetAuthors()
+		if err != nil {
+			return fmt.Errorf("获取作者列表失败：%v", err)
+		}
+		fmt.Println(color.CyanString("仓库作者列表:"))
+		fmt.Println()
+		for i, author := range authors {
+			fmt.Printf("  %d. %s\n", i+1, author)
+		}
+		fmt.Printf("\n共 %d 位作者\n", len(authors))
+		fmt.Println()
+		fmt.Println("使用 -a 或 --author 参数查看特定作者的统计:")
+		fmt.Println("  gitpulse -a \"author@example.com\"")
+		return nil
 	}
 
 	// 处理时间范围
