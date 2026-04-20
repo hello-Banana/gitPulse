@@ -41,6 +41,7 @@ var (
 	showHeatmap   bool
 	initConfig    bool
 	listAuthors   bool
+	teamAnalysis  bool
 )
 
 func main() {
@@ -82,6 +83,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&author, "author", "a", "", "指定作者 (邮箱或姓名)")
 	rootCmd.Flags().StringVarP(&excludeAuthor, "exclude-author", "x", "", "排除作者 (支持通配符)")
 	rootCmd.Flags().BoolVar(&listAuthors, "authors", false, "列出所有作者")
+	rootCmd.Flags().BoolVar(&teamAnalysis, "team", false, "团队分析模式（分析所有作者的贡献和加班情况）")
 
 	// 其他过滤
 	rootCmd.Flags().StringVarP(&branch, "branch", "b", "", "指定分支")
@@ -192,32 +194,86 @@ func runAnalysis(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s 不是 Git 仓库", repoPath)
 	}
 
+	// 处理时间范围
+	timeSince, timeUntil := parseTimeRange(year, since, until, allTime)
+
 	// 创建采集器
 	gitCollector, err := collector.NewGitCollector(repoPath)
 	if err != nil {
 		return fmt.Errorf("打开仓库失败：%v", err)
 	}
 
-	// 列出所有作者
-	if listAuthors {
+	// 列出所有作者并统计
+	if listAuthors || teamAnalysis {
 		authors, err := gitCollector.GetAuthors()
 		if err != nil {
 			return fmt.Errorf("获取作者列表失败：%v", err)
 		}
+
+		// 采集所有提交用于统计
+		allCommits, err := gitCollector.CollectCommits(&collector.CollectOptions{
+			Since: timeSince,
+			Until: timeUntil,
+		})
+		if err != nil {
+			return fmt.Errorf("采集提交失败：%v", err)
+		}
+
+		// 按作者聚合
+		authorCommits := make(map[string]int)
+		authorHours := make(map[string][]int) // 记录每个作者的提交时间（小时）
+		for _, c := range allCommits {
+			key := fmt.Sprintf("%s <%s>", c.Author, c.Email)
+			authorCommits[key]++
+			authorHours[key] = append(authorHours[key], c.Time.Hour())
+		}
+
+		// 打印团队分析
+		if teamAnalysis {
+			printTeamAnalysis(authors, authorCommits, authorHours)
+			return nil
+		}
+
+		// 打印作者列表（带提交数）
 		fmt.Println(color.CyanString("仓库作者列表:"))
 		fmt.Println()
-		for i, author := range authors {
-			fmt.Printf("  %d. %s\n", i+1, author)
+		fmt.Printf("%-4s %-40s %8s  %-10s\n", "序号", "作者", "提交数", "标签")
+		fmt.Println(strings.Repeat("─", 70))
+
+		// 排序
+		type authorStat struct {
+			name  string
+			count int
 		}
-		fmt.Printf("\n共 %d 位作者\n", len(authors))
-		fmt.Println()
-		fmt.Println("使用 -a 或 --author 参数查看特定作者的统计:")
+		var stats []authorStat
+		for name, count := range authorCommits {
+			stats = append(stats, authorStat{name, count})
+		}
+		for i := 0; i < len(stats)-1; i++ {
+			for j := i + 1; j < len(stats); j++ {
+				if stats[i].count < stats[j].count {
+					stats[i], stats[j] = stats[j], stats[i]
+				}
+			}
+		}
+
+		maxCount := 0
+		if len(stats) > 0 {
+			maxCount = stats[0].count
+		}
+
+		for i, stat := range stats {
+			label := getAuthorLabel(stat.count, maxCount, authorHours[stat.name])
+			fmt.Printf("%-4d %-40s %8d  %-10s\n", i+1, stat.name, stat.count, label)
+		}
+		fmt.Println(strings.Repeat("─", 70))
+		fmt.Printf("\n共 %d 位作者，%d 条提交\n\n", len(authors), len(allCommits))
+		fmt.Println("使用 -a 或 --author 参数查看特定作者的详细分析:")
 		fmt.Println("  gitpulse -a \"author@example.com\"")
+		fmt.Println()
+		fmt.Println("使用 --team 参数查看详细的团队分析报告")
 		return nil
 	}
-
-	// 处理时间范围
-	timeSince, timeUntil := parseTimeRange(year, since, until, allTime)
 
 	fmt.Println(color.CyanString("正在分析仓库：%s", repoPath))
 	if !timeSince.IsZero() {
@@ -783,4 +839,138 @@ func parseTimeRange(year, since, until string, allTime bool) (time.Time, time.Ti
 	}
 
 	return timeSince, timeUntil
+}
+
+// getAuthorLabel 根据提交数和时间分布给出作者标签
+func getAuthorLabel(commitCount, maxCount int, hours []int) string {
+	if commitCount == 0 {
+		return "潜水员"
+	}
+
+	// 计算加班提交比例（18 点后或周末）
+	overtimeCount := 0
+	for _, h := range hours {
+		if h >= 18 || h <= 8 {
+			overtimeCount++
+		}
+	}
+
+	overtimeRatio := 0
+	if len(hours) > 0 {
+		overtimeRatio = overtimeCount * 100 / len(hours)
+	}
+
+	// 根据提交数和加班比例给标签
+	if commitCount >= maxCount*80/100 && overtimeRatio > 40 {
+		return "👑 卷王"
+	}
+	if commitCount >= maxCount*60/100 && overtimeRatio > 30 {
+		return "💪 骨干"
+	}
+	if commitCount >= maxCount*40/100 {
+		return "✓ 活跃"
+	}
+	if commitCount >= maxCount*20/100 {
+		return "○ 参与"
+	}
+	return "△ 偶尔"
+}
+
+// printTeamAnalysis 打印团队分析报告
+func printTeamAnalysis(authors []string, authorCommits map[string]int, authorHours map[string][]int) {
+	fmt.Println()
+	fmt.Println(color.CyanString(strings.Repeat("═", 78)))
+	fmt.Println("  👥 团队贡献分析报告")
+	fmt.Println(color.CyanString(strings.Repeat("═", 78)))
+	fmt.Println()
+
+	// 排序
+	type authorStat struct {
+		name   string
+		count  int
+		hours  []int
+		label  string
+		score  int // 卷王指数
+	}
+	var stats []authorStat
+	for name, count := range authorCommits {
+		stats = append(stats, authorStat{
+			name:  name,
+			count: count,
+			hours: authorHours[name],
+		})
+	}
+
+	// 按提交数排序
+	for i := 0; i < len(stats)-1; i++ {
+		for j := i + 1; j < len(stats); j++ {
+			if stats[i].count < stats[j].count {
+				stats[i], stats[j] = stats[j], stats[i]
+			}
+		}
+	}
+
+	maxCount := 0
+	if len(stats) > 0 {
+		maxCount = stats[0].count
+	}
+
+	// 计算每个作者的标签和卷王指数
+	for i := range stats {
+		stats[i].label = getAuthorLabel(stats[i].count, maxCount, stats[i].hours)
+
+		// 计算卷王指数
+		overtimeCount := 0
+		for _, h := range stats[i].hours {
+			if h >= 18 || h <= 8 {
+				overtimeCount++
+			}
+		}
+		overtimeRatio := 0
+		if len(stats[i].hours) > 0 {
+			overtimeRatio = overtimeCount * 100 / len(stats[i].hours)
+		}
+		stats[i].score = stats[i].count * 50 / maxCount + overtimeRatio / 2
+	}
+
+	// 打印表格
+	fmt.Printf("%-4s %-35s %8s %10s  %-12s\n", "排名", "作者", "提交数", "加班比例", "标签")
+	fmt.Println(strings.Repeat("─", 78))
+
+	for i, stat := range stats {
+		overtimeCount := 0
+		for _, h := range stat.hours {
+			if h >= 18 || h <= 8 {
+				overtimeCount++
+			}
+		}
+		overtimeRatio := 0
+		if len(stat.hours) > 0 {
+			overtimeRatio = overtimeCount * 100 / len(stat.hours)
+		}
+
+		medal := "  "
+		if i == 0 {
+			medal = "🥇"
+		} else if i == 1 {
+			medal = "🥈"
+		} else if i == 2 {
+			medal = "🥉"
+		}
+
+		fmt.Printf("%-4d %-35s %8d %9d%%  %-12s %s\n",
+			i+1, stat.name, stat.count, overtimeRatio, stat.label, medal)
+	}
+	fmt.Println(strings.Repeat("─", 78))
+	fmt.Println()
+
+	// 卷王榜
+	fmt.Println(color.RedString("🏆 卷王榜 Top 3:"))
+	fmt.Println()
+	for i := 0; i < 3 && i < len(stats); i++ {
+		fmt.Printf("  %d. %s - 卷王指数：%d (提交：%d, 加班：%d%%)\n",
+			i+1, stats[i].name, stats[i].score, stats[i].count,
+			len(stats[i].hours))
+	}
+	fmt.Println()
 }
