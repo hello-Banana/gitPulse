@@ -7,6 +7,23 @@
 **gitPulse** 是一款 Git 仓库工作强度分析工具，通过统计 commit 时间分布，智能识别团队的工作模式和加班文化。
 
 > 🎯 **核心理念**：用数据了解团队节奏，拒绝无效内卷
+>
+> 💡 **项目灵感**：本工具是 [code996](https://github.com/hellodigua/code996) 的 Go 语言重构版本
+
+---
+
+## 🙏 致谢
+
+> **本项目深受 [hellodigua/code996](https://github.com/hellodigua/code996) 启发**
+>
+> code996 是一款优秀的 TypeScript 实现的 Git 加班分析工具，首创了 996 指数、疲劳度模型等核心概念。
+>
+> gitPulse 在保留 code996 核心功能的基础上，使用 Go 语言进行了完整重构，主要改进包括：
+>
+> - 🚀 **性能提升**：纯 Go 实现，百万级提交秒级分析
+> - 📦 **零依赖**：使用 go-git，无需安装 git 客户端
+> - 🇨🇳 **中国特色**：原生支持大小周、报税期、调休等场景
+> - 🔒 **隐私安全**：纯本地运行，数据不出机器
 
 ---
 
@@ -256,11 +273,11 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ---
 
-## 🙏 致谢
+## 🔗 相关链接
 
-- 灵感来源于 [code996](https://github.com/hellodigua/code996)
-- 使用 [go-git](https://github.com/go-git/go-git) 进行 Git 仓库解析
-- 使用 [cobra](https://github.com/spf13/cobra) 构建 CLI
+- **原始灵感项目**: [hellodigua/code996](https://github.com/hellodigua/code996) - TypeScript 版本的加班分析工具
+- **Go 官方文档**: [https://go.dev](https://go.dev)
+- **go-git 库**: [https://github.com/go-git/go-git](https://github.com/go-git/go-git)
 
 ---
 

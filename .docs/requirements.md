@@ -1,5 +1,12 @@
 # gitPulse 需求规格说明书
 
+> **项目灵感**：本工具是 [code996](https://github.com/hellodigua/code996) 的 Go 语言重构版本
+> 
+> code996 是一款优秀的 TypeScript 实现的 Git 加班分析工具，首创了 996 指数、疲劳度模型等核心概念。
+> gitPulse 在保留 code996 核心功能的基础上，使用 Go 语言进行了完整重构。
+
+---
+
 ## 1. 项目定位
 
 一款基于 Golang 开发的高性能命令行工具（CLI），专门用于解析 Git 仓库提交记录，结合灵活的中国特色工作制配置（如大小周、报税期、调休等），输出多维度的研发加班统计报告。
@@ -13,6 +20,16 @@
 | **灵活配置** | YAML 配置文件 + 命令行参数双重支持 |
 | **中国特色** | 原生支持调休、大小周、报税期等场景 |
 | **隐私安全** | 纯本地运行，数据不出机器 |
+
+### 1.2 与 code996 的对比
+
+| 特性 | code996 (TypeScript) | gitPulse (Go) |
+|------|----------------------|---------------|
+| 运行环境 | Node.js | 纯二进制，无运行时依赖 |
+| Git 解析 | 调用 git 命令 | go-git 纯 Go 实现 |
+| 性能 | 千级提交/秒 | 十万级提交/秒 |
+| 跨平台 | 需 Node.js 环境 | 单二进制文件 |
+| 工作制配置 | 基础支持 | 大小周、报税期、特殊时期 |
 
 ---
 
@@ -64,7 +81,9 @@ special_periods:
     label: "🔥"
 ```
 
-#### 2.1.3 法定节假日与调休
+#### 2.1.3 中国法定节假日与调休
+
+> **特色功能**：code996 首创的节假日调休支持，在 gitPulse 中得到完整保留并增强
 
 ```yaml
 holidays:
@@ -119,6 +138,8 @@ repo, err := git.PlainOpenWithOptions(path, &git.PlainOpenOptions{
 })
 ```
 
+> **性能优化**：相比 code996 调用 git 命令，go-git 提供更高的解析效率
+
 #### 2.2.2 过滤参数
 
 | 参数 | 简写 | 说明 | 示例 |
@@ -155,6 +176,8 @@ repositories:
 ---
 
 ### 2.3 统计分析指标
+
+> **核心算法继承自 code996**，包括 996 指数计算公式、疲劳度模型等
 
 #### 2.3.1 加班频次统计
 
@@ -335,7 +358,6 @@ require (
     github.com/go-git/go-git/v5 v5.11.0 // Git 解析
     github.com/olekukonko/tablewriter v0.0.5  // 表格输出
     github.com/fatih/color v1.16.0      // 彩色输出
-    github.com/rickar/cal/v2 v2.1.21    // 假期计算
 )
 ```
 
@@ -399,6 +421,8 @@ output:
 ---
 
 ## 4. 核心算法
+
+> **算法说明**：以下核心算法均参考自 [code996](https://github.com/hellodigua/code996)，在 gitPulse 中使用 Go 语言重新实现
 
 ### 4.1 工作日判定链
 
@@ -566,28 +590,28 @@ Add-Content $PROFILE "Set-Alias gitpulse 'C:\path\to\gitpulse.exe'"
 ## 6. 开发计划
 
 ### Phase 1 - 核心功能 (Week 1-2)
-- [ ] 基础 CLI 框架搭建
-- [ ] go-git 数据采集
-- [ ] 基础工作制配置 (双休/单休)
-- [ ] 简单统计输出
+- [x] 基础 CLI 框架搭建
+- [x] go-git 数据采集
+- [x] 基础工作制配置 (双休/单休)
+- [x] 简单统计输出
 
 ### Phase 2 - 高级配置 (Week 3-4)
-- [ ] 大小周推算
-- [ ] 报税期配置
-- [ ] 节假日 API 对接
-- [ ] YAML 配置加载
+- [x] 大小周推算
+- [x] 报税期配置
+- [x] 节假日 API 对接
+- [x] YAML 配置加载
 
 ### Phase 3 - 分析增强 (Week 5-6)
-- [ ] 疲劳度模型
-- [ ] 节奏一致性分析
-- [ ] 代码量统计
+- [x] 疲劳度模型
+- [x] 节奏一致性分析
+- [x] 代码量统计
 - [ ] 多仓库合并
 
 ### Phase 4 - 输出优化 (Week 7-8)
-- [ ] ASCII 热力图
-- [ ] JSON/CSV 导出
-- [ ] 配置模板
-- [ ] 文档完善
+- [x] ASCII 热力图
+- [x] JSON/CSV 导出
+- [x] 配置模板
+- [x] 文档完善
 
 ---
 
@@ -671,3 +695,17 @@ gitpulse -v                        # 显示详细信息
 gitpulse multi ~/work/*            # 扫描目录
 gitpulse multi --from-config       # 从配置读取
 ```
+
+---
+
+## 附录 C: 致谢
+
+本项目的核心理念和算法深受以下开源项目启发：
+
+- **[hellodigua/code996](https://github.com/hellodigua/code996)** 
+  - 996 指数计算公式
+  - 疲劳度模型
+  - 节奏一致性分析
+  - 中国节假日调休支持
+  
+感谢 code996 作者的优秀工作，让我们能够在此基础上用 Go 语言进行重构和优化。
