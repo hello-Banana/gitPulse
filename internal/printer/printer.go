@@ -449,15 +449,15 @@ func printFooter() {
 	fmt.Println("     gitpulse -v                        显示热力图")
 	fmt.Println("     gitpulse --init                    初始化配置文件")
 	fmt.Println()
-	fmt.Println("  📦 项目地址：https://github.com/hellodigua/code996")
+	fmt.Println("  📦 项目地址：https://github.com/hello-Banana/gitPulse")
 }
 
 // PrintHeatmap 打印热力图
 func PrintHeatmap(commitData types.GitCommitData) {
 	fmt.Println()
-	fmt.Println(color.CyanString(strings.Repeat("═", 65)))
+	fmt.Println(color.CyanString(strings.Repeat("═", 70)))
 	fmt.Println("  📅 24 小时提交热力图")
-	fmt.Println(color.CyanString(strings.Repeat("═", 65)))
+	fmt.Println(color.CyanString(strings.Repeat("═", 70)))
 	fmt.Println()
 
 	// 按星期几和小时聚合数据
@@ -475,17 +475,17 @@ func PrintHeatmap(commitData types.GitCommitData) {
 		}
 	}
 
-	// 打印表头
-	fmt.Print("         ")
+	// 打印表头 - 修正对齐
+	fmt.Print("        ") // 8 个空格，对齐时间列
 	weekdays := []string{"周一", "周二", "周三", "周四", "周五", "周六", "周日"}
 	for _, day := range weekdays {
-		fmt.Printf("%s ", day)
+		fmt.Printf(" %s ", day) // 每个星期占 3 个字符宽度
 	}
 	fmt.Println()
 
 	// 打印每一行
 	for hour := 0; hour < 24; hour++ {
-		fmt.Printf("%02d:00  ", hour)
+		fmt.Printf("%02d:00  ", hour) // 时间列占 6 个字符
 		for weekday := 1; weekday <= 7; weekday++ {
 			key := fmt.Sprintf("%d-%d", weekday, hour)
 			count := heatmap[key]
@@ -504,7 +504,7 @@ func PrintHeatmap(commitData types.GitCommitData) {
 					block = color.New(color.FgHiBlack).Sprintf("▒▒")
 				}
 			}
-			fmt.Print(block + " ")
+			fmt.Printf(" %s ", block) // 每个色块占 3 个字符宽度
 		}
 		fmt.Println()
 	}

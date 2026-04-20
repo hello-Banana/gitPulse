@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-code996
+gitpulse
 
 # Test binary
 *.test
